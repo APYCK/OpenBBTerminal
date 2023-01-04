@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 @log_start_end(log=logger)
 def display_autoselect_forecast(
     data: Union[pd.DataFrame, pd.Series],
-    target_column: str = "close",
+    target_column: str = "Close",
     dataset_name: str = "",
     seasonal_periods: int = 7,
-    n_predict: int = 5,
-    start_window: float = 0.85,
-    forecast_horizon: int = 5,
+    n_predict: int = 20,
+    start_window: float = 0.7,
+    forecast_horizon: int = 1,
     export: str = "",
     residuals: bool = False,
     forecast_only: bool = False,
