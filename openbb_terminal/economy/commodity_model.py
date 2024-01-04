@@ -1,11 +1,10 @@
 import logging
 import re
 
-import requests
 import pandas as pd
 
 from openbb_terminal.decorators import log_start_end
-from openbb_terminal.helper_funcs import get_user_agent
+from openbb_terminal.helper_funcs import get_user_agent, request
 
 logger = logging.getLogger(__name__)
 
@@ -34,21 +33,27 @@ def get_debt() -> pd.DataFrame:
         Country, Debt [$], Debt [% of GDP], Debt per capita [$], Debt per capita [% of GDP]
     """
     url = "https://en.wikipedia.org/wiki/List_of_countries_by_external_debt"
-    response = requests.get(url, headers={"User-Agent": get_user_agent()})
-    df = pd.read_html(response.text)[0]
+    response = request(url, headers={"User-Agent": get_user_agent()})
+    df = pd.read_html(response.content)[0]
     df = df.rename(
         columns={
             "Country/Region": "Country",
-            "External debtUS dollars": "Debt",
+            "External debt US dollars": "USD Debt",
             "Per capitaUS dollars": "Per Capita",
-            "External debt US dollars": "Debt",
-            "Per capita US dollars": "Per Capita",
+            "Per capita US dollars": "USD Per Capita",
+            "Date": "As Of",
         }
     )
-    df = df.drop(["Date", "% of GDP"], axis=1)
-    df["Debt"] = df["Debt"].apply(lambda x: format_number(x))
-    df["Rank"] = df["Debt"].rank(ascending=False).astype(int)
-    indexes = ["Rank", "Country", "Per Capita", "Debt"]
+    df["USD Debt"] = df["USD Debt"].apply(lambda x: format_number(x)).astype("int64")
+    df["USD Per Capita"] = df["USD Per Capita"].astype("int64")
+    df["Rank"] = df["USD Debt"].rank(ascending=False).astype("int64")
+    date = df["As Of"].astype(str)
+    dates = []
+    for i in date.index:
+        dates.append(date[i].split("[")[0])
+    df["As Of"] = dates
+    df["As Of"] = df["As Of"].str.replace("31 September", "30 September").str.strip()
+    indexes = ["Rank", "As Of", "Country", "USD Per Capita", "USD Debt", "% of GDP"]
     df = df[indexes]
 
     return df

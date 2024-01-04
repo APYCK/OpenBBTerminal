@@ -2,17 +2,17 @@
 __docformat__ = "numpy"
 
 import logging
-from ast import literal_eval
 import webbrowser
+from ast import literal_eval
 from typing import List
 
 import pandas as pd
-import requests
 from finvizfinance.group import performance, spectrum, valuation
 
-from openbb_terminal.rich_config import console
+from openbb_terminal.core.session.current_user import get_current_user
 from openbb_terminal.decorators import log_start_end
-from openbb_terminal.helper_funcs import get_user_agent
+from openbb_terminal.helper_funcs import get_user_agent, request
+from openbb_terminal.rich_config import console
 
 # pylint: disable=unsupported-assignment-operation
 
@@ -92,17 +92,22 @@ def get_valuation_data(
     try:
         group = GROUPS[group]
         df_group = valuation.Valuation().screener_view(group=group)
+        df_group.columns = [col.strip() for col in df_group.columns]
+        df_group = df_group.sort_values(by=sortby, ascending=ascend)
+        df_group.fillna("", inplace=True)
+
+        # Passing Raw data to Pandas DataFrame if using interactive mode
+        if get_current_user().preferences.USE_INTERACTIVE_DF:
+            return df_group
         df_group["Market Cap"] = df_group["Market Cap"].apply(
             lambda x: float(x.strip("B"))
             if x.endswith("B")
             else float(x.strip("M")) / 1000
         )
-        df_group.columns = [col.replace(" ", "") for col in df_group.columns]
-        df_group = df_group.sort_values(by=sortby, ascending=ascend)
         df_group["Volume"] = df_group["Volume"] / 1_000_000
         df_group = df_group.rename(columns={"Volume": "Volume [1M]"})
-        df_group.fillna("", inplace=True)
         return df_group
+
     except IndexError:
         console.print("Data not found.\n")
         return pd.DataFrame()
@@ -140,25 +145,31 @@ def get_performance_data(
         df_group = performance.Performance().screener_view(group=group)
         df_group = df_group.rename(
             columns={
-                "Perf Week": "Week",
-                "Perf Month": "Month",
-                "Perf Quart": "3Month",
-                "Perf Half": "6Month",
-                "Perf Year": "1Year",
+                "Perf Week": "1W",
+                "Perf Month": "1M",
+                "Perf Quart": "3M",
+                "Perf Half": "6M",
+                "Perf Year": "1Y",
                 "Perf YTD": "YTD",
-                "Avg Volume": "AvgVolume",
-                "Rel Volume": "RelVolume",
+                "Avg Volume": "Avg Volume",
             }
         )
-        df_group["Week"] = df_group["Week"].apply(lambda x: float(x.strip("%")) / 100)
+        df_group.columns = [col.strip() for col in df_group.columns]
+        df_group["1W"] = df_group["1W"].apply(lambda x: float(x.strip("%")) / 100)
         df_group = df_group.sort_values(by=sortby, ascending=ascend)
-        df_group["Volume"] = df_group["Volume"] / 1_000_000
-        df_group["AvgVolume"] = df_group["AvgVolume"] / 1_000_000
-        df_group = df_group.rename(
-            columns={"Volume": "Volume [1M]", "AvgVolume": "AvgVolume [1M]"}
-        )
         df_group.fillna("", inplace=True)
+
+        # Passing Raw data to Pandas DataFrame if using interactive mode
+        if get_current_user().preferences.USE_INTERACTIVE_DF:
+            return df_group
+
+        df_group["Volume"] = df_group["Volume"] / 1_000_000
+        df_group["Avg Volume"] = df_group["Avg Volume"] / 1_000_000
+        df_group = df_group.rename(
+            columns={"Volume": "Volume [1M]", "Avg Volume": "Avg Volume [1M]"}
+        )
         return df_group
+
     except IndexError:
         console.print("Data not found.\n")
         return pd.DataFrame()
@@ -203,7 +214,7 @@ def get_futures(
     pd.Dataframe
         Indices, Energy, Metals, Meats, Grains, Softs, Bonds, Currencies
     """
-    source = requests.get(
+    source = request(
         "https://finviz.com/futures.ashx", headers={"User-Agent": get_user_agent()}
     ).text
 

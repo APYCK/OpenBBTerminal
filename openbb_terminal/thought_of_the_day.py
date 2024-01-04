@@ -5,10 +5,9 @@ from __future__ import annotations
 import random
 import re
 
-import requests
 from bs4 import BeautifulSoup
 
-from openbb_terminal.helper_funcs import get_user_agent
+from openbb_terminal.helper_funcs import request
 from openbb_terminal.rich_config import console
 
 __docformat__ = "numpy"
@@ -17,7 +16,7 @@ __docformat__ = "numpy"
 class ThoughtOfTheDay:
     """ThoughtOfTheDay class"""
 
-    def __init__(self, urls: dict[str, str] = None):
+    def __init__(self, urls: dict[str, str] | None = None):
         """Constructor"""
 
         self.metadata: dict = {}
@@ -55,10 +54,7 @@ class ThoughtOfTheDay:
             Metadata dictionary that includes number of quotes, number of pages and first 30 quotes
         """
         quotes_page = BeautifulSoup(
-            requests.get(
-                self.urls[author],
-                headers={"User-Agent": get_user_agent()},
-            ).text,
+            request(self.urls[author]).text,
             "lxml",
         )
 
@@ -138,7 +134,9 @@ def get_thought_of_the_day():
 
     console.print("Thought of the day:")
     console.print(
-        totd.quote_to_str(quotes[random.randint(0, len(quotes) - 1)])  # nosec
+        totd.quote_to_str(
+            quotes[random.randint(0, len(quotes) - 1)]  # nosec # noqa: S311
+        )
     )
 
     console.print("\n")

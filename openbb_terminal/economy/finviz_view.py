@@ -3,8 +3,7 @@ __docformat__ = "numpy"
 
 import logging
 import os
-
-from PIL import Image
+from typing import Optional
 
 from openbb_terminal.decorators import log_start_end
 from openbb_terminal.economy import finviz_model
@@ -33,6 +32,7 @@ def display_valuation(
     sortby: str = "Name",
     ascend: bool = True,
     export: str = "",
+    sheet_name: Optional[str] = None,
 ):
     """Display group (sectors, industry or country) valuation data. [Source: Finviz]
 
@@ -51,12 +51,13 @@ def display_valuation(
 
     if df_group.empty:
         return
-
+    df_group = df_group.rename(columns={"Name": ""})
     print_rich_table(
         df_group,
         show_index=False,
         headers=list(df_group.columns),
-        title="Group Valuation Data",
+        title=f"{group.replace('_',' ').title()} Valuation Data",
+        export=bool(export),
     )
 
     export_data(
@@ -64,6 +65,7 @@ def display_valuation(
         os.path.dirname(os.path.abspath(__file__)),
         "valuation",
         df_group,
+        sheet_name,
     )
 
 
@@ -73,6 +75,7 @@ def display_performance(
     sortby: str = "Name",
     ascend: bool = True,
     export: str = "",
+    sheet_name: Optional[str] = None,
 ):
     """View group (sectors, industry or country) performance data. [Source: Finviz]
 
@@ -88,15 +91,24 @@ def display_performance(
         Export data to csv,json,xlsx or png,jpg,pdf,svg file
     """
     df_group = finviz_model.get_performance_data(group, sortby, ascend)
-
+    df_group = df_group.rename(
+        columns={
+            "Name": "",
+            "Week": "1W",
+            "Month": "1M",
+            "3Month": "3M",
+            "6Month": "6M",
+            "1Year": "1Y",
+        }
+    )
     if df_group.empty:
         return
-
     print_rich_table(
         df_group,
         show_index=False,
         headers=df_group.columns,
-        title="Group Performance Data",
+        title=f"{group.replace('_',' ').title()} Performance Data",
+        export=bool(export),
     )
 
     export_data(
@@ -104,32 +116,8 @@ def display_performance(
         os.path.dirname(os.path.abspath(__file__)),
         "performance",
         df_group,
+        sheet_name,
     )
-
-
-@log_start_end(log=logger)
-def display_spectrum(group: str = "sector", export: str = ""):
-    """Display finviz spectrum in system viewer [Source: Finviz]
-
-    Parameters
-    ----------
-    group: str
-        Group by category. Available groups can be accessed through get_groups().
-    export: str
-        Format to export data
-    """
-    finviz_model.get_spectrum_data(group)
-
-    group = finviz_model.GROUPS[group]
-    img = Image.open(group + ".jpg")
-
-    export_data(
-        export,
-        os.path.dirname(os.path.abspath(__file__)),
-        "spectrum",
-    )
-
-    img.show()
 
 
 @log_start_end(log=logger)
@@ -138,6 +126,7 @@ def display_future(
     sortby: str = "ticker",
     ascend: bool = False,
     export: str = "",
+    sheet_name: Optional[str] = None,
 ):
     """Display table of a particular future type. [Source: Finviz]
 
@@ -159,6 +148,7 @@ def display_future(
         show_index=True,
         headers=["prevClose", "last", "change (%)"],
         title="Future Table [Source: FinViz]",
+        export=bool(export),
     )
 
     export_data(
@@ -166,4 +156,5 @@ def display_future(
         os.path.dirname(os.path.abspath(__file__)),
         future_type.lower(),
         df,
+        sheet_name,
     )

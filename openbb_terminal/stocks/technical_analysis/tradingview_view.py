@@ -3,12 +3,14 @@ __docformat__ = "numpy"
 
 import logging
 import os
+from typing import Optional
+
 import pandas as pd
 
 from openbb_terminal.decorators import log_start_end
 from openbb_terminal.helper_funcs import export_data, print_rich_table
-from openbb_terminal.stocks.technical_analysis import tradingview_model
 from openbb_terminal.rich_config import console
+from openbb_terminal.stocks.technical_analysis import tradingview_model
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ def print_recommendation(
     exchange: str = "",
     interval: str = "",
     export: str = "",
+    sheet_name: Optional[str] = None,
 ):
     """Print tradingview recommendation based on technical indicators
 
@@ -33,6 +36,8 @@ def print_recommendation(
         Exchange based on tradingview docs https://python-tradingview-ta.readthedocs.io/en/latest/usage.html
     interval: str
         Interval time to check technical indicators and correspondent recommendation
+    sheet_name: str
+        Optionally specify the name of the sheet the data is exported to.
     export: str
         Format of export file
     """
@@ -44,7 +49,9 @@ def print_recommendation(
     if (isinstance(recom, pd.DataFrame) and recom.empty) or (
         not isinstance(recom, pd.DataFrame) and not recom
     ):
-        console.print("[red]The API did not return any recommendations.[/red]\n")
+        console.print(
+            "[red]The API did not return recommendations. Please make sure to include the desired parameters.[/red]\n"
+        )
         return
 
     export_data(
@@ -52,10 +59,12 @@ def print_recommendation(
         os.path.dirname(os.path.abspath(__file__)),
         "recom",
         recom,
+        sheet_name,
     )
     print_rich_table(
         recom,
         headers=list(recom.columns),
         title="Ticker Recommendation",
         show_index=True,
+        export=bool(export),
     )

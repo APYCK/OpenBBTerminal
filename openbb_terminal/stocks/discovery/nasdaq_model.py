@@ -1,17 +1,17 @@
 """NASDAQ DataLink Model"""
 __docformat__ = "numpy"
 
-from datetime import datetime
 import logging
+from datetime import datetime
+from typing import Optional
 
 import pandas as pd
 import requests
 
-import openbb_terminal.config_terminal as cfg
+from openbb_terminal.core.session.current_user import get_current_user
 from openbb_terminal.decorators import check_api_key, log_start_end
-from openbb_terminal.helper_funcs import get_user_agent
+from openbb_terminal.helper_funcs import get_user_agent, request
 from openbb_terminal.rich_config import console
-
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,8 @@ def get_retail_tickers() -> pd.DataFrame:
     pd.DataFrame
         Dataframe of tickers
     """
-    r = requests.get(
-        f"https://data.nasdaq.com/api/v3/datatables/NDAQ/RTAT10/?api_key={cfg.API_KEY_QUANDL}"
+    r = request(
+        f"https://data.nasdaq.com/api/v3/datatables/NDAQ/RTAT10/?api_key={get_current_user().credentials.API_KEY_QUANDL}"
     )
 
     df = pd.DataFrame()
@@ -35,21 +35,14 @@ def get_retail_tickers() -> pd.DataFrame:
     if r.status_code == 200:
         df = pd.DataFrame(r.json()["datatable"]["data"])
         df.columns = ["Date", "Ticker", "Activity", "Sentiment"]
-    # Wrong API Key
-    elif r.status_code == 400:
-        console.print(r.text)
-    # Premium Feature
-    elif r.status_code == 403:
-        console.print(r.text)
-    # Catching other exception
-    elif r.status_code != 200:
+    else:
         console.print(r.text)
 
     return df
 
 
 @log_start_end(log=logger)
-def get_dividend_cal(date: str = None) -> pd.DataFrame:
+def get_dividend_cal(date: Optional[str] = None) -> pd.DataFrame:
     """Gets dividend calendar for given date.  Date represents Ex-Dividend Date
 
     Parameters
@@ -79,10 +72,9 @@ def get_dividend_cal(date: str = None) -> pd.DataFrame:
     ):
         ag = get_user_agent()
     try:
-        r = requests.get(
+        r = request(
             f"https://api.nasdaq.com/api/calendar/dividends?date={date}",
             headers={"User-Agent": ag},
-            timeout=5,
         )
 
         df = pd.DataFrame()
@@ -90,14 +82,7 @@ def get_dividend_cal(date: str = None) -> pd.DataFrame:
         if r.status_code == 200:
             df = pd.DataFrame(r.json()["data"]["calendar"]["rows"])
 
-        # Wrong API Key
-        elif r.status_code == 400:
-            console.print(r.text)
-        # Premium Feature
-        elif r.status_code == 403:
-            console.print(r.text)
-        # Catching other exception
-        elif r.status_code != 200:
+        else:
             console.print(r.text)
 
     except requests.exceptions.ReadTimeout:

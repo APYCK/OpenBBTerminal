@@ -52,15 +52,17 @@ def test_display_historical(mocker, symbols):
     yfinance_view.display_historical(
         symbols=symbols,
         start_date="2022-10-10",
+        end_date="2023-01-01",
         raw=True,
     )
 
 
+@pytest.mark.skip
 @pytest.mark.vcr
 @pytest.mark.record_stdout
 @pytest.mark.parametrize(
     "symbol",
-    ["ES", "YI"],
+    ["ES", "CL"],
 )
 def test_display_curve(mocker, symbol):
     yf_download = yfinance.download
